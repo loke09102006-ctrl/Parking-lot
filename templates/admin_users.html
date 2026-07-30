@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block title %}Users — ParkOS Admin{% endblock %}
+{% block page_title %}User Management{% endblock %}
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Add New User</span></div>
+    <div class="card-body">
+      <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="add">
+        <div class="form-group">
+          <label class="form-label">Full Name</label>
+          <input type="text" name="full_name" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <input type="text" name="username" class="form-control" required autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" name="password" class="form-control" required autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Role</label>
+          <select name="role" class="form-control" required>
+            <option value="">— Select Role —</option>
+            <option value="admin">Admin</option>
+            <option value="entry_staff">Entry Staff</option>
+            <option value="exit_staff">Exit Staff</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%">+ Create User</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-title">All Users</span></div>
+    <div class="card-body" style="padding:0">
+      <table class="table">
+        <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td>{{ u.full_name }}</td>
+            <td class="mono">{{ u.username }}</td>
+            <td><span class="user-role role-{{ u.role }}" style="display:inline-block;padding:2px 8px;border-radius:2px;font-size:.65rem;font-family:'JetBrains Mono',monospace">{{ u.role.replace('_',' ').title() }}</span></td>
+            <td>
+              {% if u.id != current_user.id %}
+              <form method="POST" style="display:inline" onsubmit="return confirm('Delete user {{ u.username }}?')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="user_id" value="{{ u.id }}">
+                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+              </form>
+              {% else %}
+              <span style="color:var(--muted);font-size:.75rem">(you)</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% block title %}Vehicle Entry — ParkOS{% endblock %}
+{% block page_title %}Vehicle Entry{% endblock %}
+{% block extra_css %}
+<style>
+.entry-layout{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+@media(max-width:900px){.entry-layout{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="entry-layout">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Register Vehicle Entry</span></div>
+    <div class="card-body">
+      <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Vehicle Number *</label>
+            <input type="text" name="vehicle_number" class="form-control" required
+              placeholder="e.g. AP09AB1234" style="text-transform:uppercase;font-weight:700;font-size:1rem">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Vehicle Type *</label>
+            <select name="vehicle_type" id="vtype" class="form-control" required onchange="loadSlots()">
+              <option value="">— Select —</option>
+              <option value="2-wheeler">2-Wheeler (Zone A)</option>
+              <option value="4-wheeler">4-Wheeler (Zone B)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Owner Name</label>
+            <input type="text" name="owner_name" class="form-control" placeholder="Customer name">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Owner Phone</label>
+            <input type="tel" name="owner_phone" class="form-control" placeholder="Phone number">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Owner Email <span style="color:var(--muted);font-size:.65rem">(for receipt)</span></label>
+          <input type="email" name="owner_email" class="form-control" placeholder="customer@email.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Assign Parking Slot *</label>
+          <select name="slot_id" id="slotSelect" class="form-control" required>
+            <option value="">— Select vehicle type first —</option>
+          </select>
+          <div id="slotHint" style="font-size:.72rem;font-family:'JetBrains Mono',monospace;color:var(--muted);margin-top:5px"></div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;font-size:.95rem">
+          ↓ Register Entry
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Active Vehicles</span>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--4w)">{{ active|length }} parked</span>
+    </div>
+    <div class="card-body" style="padding:0;max-height:520px;overflow-y:auto">
+      {% if active %}
+      <table class="table">
+        <thead><tr><th>Slot</th><th>Vehicle</th><th>Type</th><th>Entry</th></tr></thead>
+        <tbody>
+          {% for r in active %}
+          <tr>
+            <td class="mono">{{ r.slot_code }}</td>
+            <td class="mono"><strong>{{ r.vehicle_number }}</strong></td>
+            <td><span class="badge badge-{{ '2w' if r.vehicle_type=='2-wheeler' else '4w' }}">{{ r.vehicle_type }}</span></td>
+            <td class="mono" style="font-size:.75rem">{{ r.entry_time.strftime('%H:%M, %d %b') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <div style="padding:40px;text-align:center;color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:.8rem">NO ACTIVE VEHICLES</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:24px">
+  <div class="card-header"><span class="card-title">Free Slots Overview</span></div>
+  <div class="card-body" style="padding:0">
+    <table class="table">
+      <thead><tr><th>Slot</th><th>Zone</th><th>Vehicle Type</th><th>Status</th></tr></thead>
+      <tbody>
+        {% for s in free_slots %}
+        <tr>
+          <td class="mono">{{ s.slot_code }}</td>
+          <td>Zone {{ s.zone }}</td>
+          <td><span class="badge badge-{{ '2w' if s.vehicle_type=='2-wheeler' else '4w' }}">{{ s.vehicle_type }}</span></td>
+          <td style="color:var(--success);font-size:.72rem;font-family:'JetBrains Mono',monospace">FREE</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+async function loadSlots(){
+  const vtype=document.getElementById('vtype').value;
+  const sel=document.getElementById('slotSelect');
+  const hint=document.getElementById('slotHint');
+  if(!vtype){sel.innerHTML='<option value="">— Select vehicle type first —</option>';hint.textContent='';return;}
+  sel.innerHTML='<option value="">Loading...</option>';
+  const res=await fetch(`/api/free-slots/${encodeURIComponent(vtype)}`);
+  const slots=await res.json();
+  if(slots.length===0){
+    sel.innerHTML='<option value="">No free slots available for this type</option>';
+    hint.textContent='All slots occupied. Try different vehicle type or wait for a slot to free up.';
+    hint.style.color='var(--danger)';
+  } else {
+    sel.innerHTML='<option value="">— Select a slot —</option>'+
+      slots.map(s=>`<option value="${s.id}">${s.slot_code}</option>`).join('');
+    hint.textContent=`${slots.length} slot(s) available`;
+    hint.style.color='var(--success)';
+  }
+}
+</script>
+{% endblock %}

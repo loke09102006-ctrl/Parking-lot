@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% block title %}Vehicle Exit — ParkOS{% endblock %}
+{% block page_title %}Vehicle Exit & Billing{% endblock %}
+{% block extra_css %}
+<style>
+.exit-layout{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.bill-preview{
+  background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:20px;
+}
+.bill-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(42,42,58,.5);font-size:.85rem}
+.bill-row:last-child{border-bottom:none}
+.bill-label{color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:.72rem;text-transform:uppercase}
+.bill-value{font-weight:600}
+.total-amount{
+  background:rgba(245,200,66,.1);border:1px solid rgba(245,200,66,.3);
+  border-radius:4px;padding:16px;text-align:center;margin:16px 0;
+}
+.total-label{font-size:.7rem;font-family:'JetBrains Mono',monospace;color:var(--muted);text-transform:uppercase;margin-bottom:4px}
+.total-value{font-size:2rem;font-weight:800;color:var(--accent)}
+.qr-section{text-align:center;margin:16px 0}
+.qr-img{border:3px solid var(--accent);border-radius:6px;padding:8px;background:#fff;display:inline-block}
+.payment-methods{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.pay-btn{
+  padding:10px;border:1px solid var(--border);border-radius:4px;background:var(--surface);
+  color:var(--text);font-family:'Syne',sans-serif;font-size:.82rem;font-weight:600;
+  cursor:pointer;text-align:center;transition:all .2s;
+}
+.pay-btn:hover,.pay-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(245,200,66,.08)}
+@media(max-width:900px){.exit-layout{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="exit-layout">
+  <div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Search Vehicle</span></div>
+      <div class="card-body">
+        <form method="POST" id="searchForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="search">
+          <div class="form-group">
+            <label class="form-label">Vehicle Number</label>
+            <input type="text" name="search" id="searchInput" class="form-control" required
+              placeholder="e.g. AP09AB1234" style="text-transform:uppercase;font-size:1.1rem;font-weight:700"
+              value="{{ request.form.get('search','') }}">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Payment Method</label>
+            <select name="payment_method" id="paymentMethod" class="form-control">
+              <option value="cash">Cash</option>
+              <option value="upi">UPI (QR Code)</option>
+              <option value="card">Card</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%">→ Calculate Bill</button>
+        </form>
+      </div>
+    </div>
+
+    {% if record %}
+    <div class="card" style="margin-top:20px">
+      <div class="card-header"><span class="card-title">Checkout Confirmation</span></div>
+      <div class="card-body">
+        <form method="POST" id="checkoutForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="action" value="checkout">
+          <input type="hidden" name="record_id" value="{{ record.id }}">
+          <input type="hidden" name="payment_method" value="{{ request.form.get('payment_method','cash') }}">
+          <div class="bill-preview">
+            <div class="bill-row">
+              <span class="bill-label">Vehicle No.</span>
+              <span class="bill-value mono" style="color:var(--accent)">{{ record.vehicle_number }}</span>
+            </div>
+            <div class="bill-row">
+              <span class="bill-label">Slot</span>
+              <span class="bill-value mono">{{ record.slot_code }}</span>
+            </div>
+            <div class="bill-row">
+              <span class="bill-label">Vehicle Type</span>
+              <span class="bill-value">
+                <span class="badge badge-{{ '2w' if record.vehicle_type=='2-wheeler' else '4w' }}">{{ record.vehicle_type }}</span>
+              </span>
+            </div>
+            <div class="bill-row">
+              <span class="bill-label">Owner</span>
+              <span class="bill-value">{{ record.owner_name or 'N/A' }}</span>
+            </div>
+            <div class="bill-row">
+              <span class="bill-label">Entry Time</span>
+              <span class="bill-value mono">{{ record.entry_time.strftime('%H:%M, %d %b %Y') }}</span>
+            </div>
+            <div class="bill-row">
+              <span class="bill-label">Duration</span>
+              <span class="bill-value mono">{{ record.calc_duration // 60 }}h {{ record.calc_duration % 60 }}m ({{ record.calc_duration }} min)</span>
+            </div>
+          </div>
+          <div class="total-amount">
+            <div class="total-label">Amount Due</div>
+            <div class="total-value">Rs. {{ record.calc_amount }}</div>
+          </div>
+          <button type="submit" class="btn btn-success" style="width:100%;font-size:.95rem">
+            ✓ Confirm Checkout & Generate Bill
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div>
+    {% if qr_code %}
+    <div class="card">
+      <div class="card-header"><span class="card-title">UPI Payment QR</span></div>
+      <div class="card-body" style="text-align:center">
+        <div class="qr-section">
+          <div class="qr-img">
+            <img src="data:image/png;base64,{{ qr_code }}" width="200" height="200" alt="UPI QR Code">
+          </div>
+        </div>
+        <div style="margin-top:12px;font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--muted)">
+          Scan with any UPI app to pay<br>
+          <span style="color:var(--accent);font-size:1.2rem;font-weight:800">Rs. {{ record.calc_amount }}</span>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+  
+{% endblock %}

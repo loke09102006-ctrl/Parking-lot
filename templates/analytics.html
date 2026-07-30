@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+{% block title %}Analytics — ParkOS{% endblock %}
+{% block page_title %}Advanced Analytics{% endblock %}
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
+.charts-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:24px}
+canvas{max-height:240px}
+.kpi-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:16px;text-align:center;position:relative;overflow:hidden}
+.kpi::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:var(--kc,var(--accent))}
+.kpi-label{font-size:.62rem;font-family:'JetBrains Mono',monospace;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px}
+.kpi-value{font-size:1.6rem;font-weight:800}
+.kpi-sub{font-size:.72rem;color:var(--muted);margin-top:4px}
+@media(max-width:1000px){.charts-grid,.charts-grid-3{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+{% block content %}
+
+<!-- KPI Strip -->
+<div class="kpi-strip">
+  {% set tw = type_stats.get('2-wheeler',{}) %}
+  {% set fw = type_stats.get('4-wheeler',{}) %}
+  <div class="kpi" style="--kc:var(--accent)">
+    <div class="kpi-label">Total Revenue (30d)</div>
+    <div class="kpi-value">Rs.{{ (tw.get('total_rev',0)|float + fw.get('total_rev',0)|float)|round(0)|int }}</div>
+    <div class="kpi-sub">Last 30 days</div>
+  </div>
+  <div class="kpi" style="--kc:var(--2w)">
+    <div class="kpi-label">2-Wheeler Revenue</div>
+    <div class="kpi-value">Rs.{{ tw.get('total_rev',0)|float|round(0)|int }}</div>
+    <div class="kpi-sub">{{ tw.get('total_visits',0) }} visits</div>
+  </div>
+  <div class="kpi" style="--kc:var(--4w)">
+    <div class="kpi-label">4-Wheeler Revenue</div>
+    <div class="kpi-value">Rs.{{ fw.get('total_rev',0)|float|round(0)|int }}</div>
+    <div class="kpi-sub">{{ fw.get('total_visits',0) }} visits</div>
+  </div>
+  <div class="kpi" style="--kc:var(--info)">
+    <div class="kpi-label">Avg Duration (2W)</div>
+    <div class="kpi-value">{{ tw.get('avg_min',0) // 60 }}h {{ tw.get('avg_min',0) % 60 }}m</div>
+    <div class="kpi-sub">Per visit</div>
+  </div>
+  <div class="kpi" style="--kc:var(--warning)">
+    <div class="kpi-label">Avg Duration (4W)</div>
+    <div class="kpi-value">{{ fw.get('avg_min',0) // 60 }}h {{ fw.get('avg_min',0) % 60 }}m</div>
+    <div class="kpi-sub">Per visit</div>
+  </div>
+</div>
+
+<!-- Row 1: Daily revenue + Peak hours -->
+<div class="charts-grid">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Daily Revenue — Last 30 Days</span></div>
+    <div class="card-body"><canvas id="daily30Chart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title">Peak Hours (All Time)</span></div>
+    <div class="card-body"><canvas id="peakChart"></canvas></div>
+  </div>
+</div>
+
+<!-- Row 2: Revenue by vehicle type + Payment methods -->
+<div class="charts-grid">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Revenue by Vehicle Type (30d)</span></div>
+    <div class="card-body" style="display:flex;align-items:center;justify-content:center">
+      <canvas id="typeChart" style="max-height:220px;max-width:220px"></canvas>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title">Payment Methods</span></div>
+    <div class="card-body">
+      <canvas id="paymentChart"></canvas>
+      <table class="table" style="margin-top:12px">
+        <thead><tr><th>Method</th><th>Transactions</th><th>Revenue</th></tr></thead>
+        <tbody>
+          {% for p in payment_stats %}
+          <tr>
+            <td style="font-weight:600;text-transform:uppercase;font-family:'JetBrains Mono',monospace;font-size:.75rem">{{ p.payment_method or 'N/A' }}</td>
+            <td class="mono">{{ p.cnt }}</td>
+            <td class="mono" style="color:var(--accent)">Rs. {{ p.rev|float|round(2) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Row 3: Monthly revenue + Zone occupancy -->
+<div class="charts-grid">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Monthly Revenue — Last 6 Months</span></div>
+    <div class="card-body"><canvas id="monthlyChart"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-title">Zone Occupancy (Current)</span></div>
+    <div class="card-body">
+      {% for z in zone_occ %}
+      {% set pct = (z.occ / z.total * 100)|round(1) if z.total else 0 %}
+      <div style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span style="font-weight:600;font-family:'JetBrains Mono',monospace;font-size:.82rem">Zone {{ z.zone }} — {{ z.vehicle_type }}</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:.78rem;color:var(--muted)">{{ z.occ }}/{{ z.total }} ({{ pct }}%)</span>
+        </div>
+        <div style="height:10px;background:var(--surface3);border-radius:5px;overflow:hidden">
+          <div style="height:100%;width:{{ pct }}%;background:{{ 'var(--2w)' if z.zone=='A' else 'var(--4w)' }};border-radius:5px;transition:width .6s ease"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Frequent Vehicles -->
+<div class="card" style="margin-bottom:24px">
+  <div class="card-header"><span class="card-title">Top 10 Frequent Vehicles</span></div>
+  <div class="card-body" style="padding:0">
+    {% if frequent %}
+    <table class="table">
+      <thead><tr><th>Rank</th><th>Vehicle No.</th><th>Type</th><th>Visits</th><th>Total Paid</th></tr></thead>
+      <tbody>
+        {% for v in frequent %}
+        <tr>
+          <td class="mono" style="color:var(--muted)">#{{ loop.index }}</td>
+          <td class="mono"><strong>{{ v.vehicle_number }}</strong></td>
+          <td><span class="badge badge-{{ '2w' if v.vehicle_type=='2-wheeler' else '4w' }}">{{ v.vehicle_type }}</span></td>
+          <td class="mono">{{ v.visits }}</td>
+          <td class="mono" style="color:var(--accent)">Rs. {{ v.total_paid|float|round(2) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div style="padding:32px;text-align:center;color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:.8rem">NO DATA YET</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+Chart.defaults.color='#6868a0';Chart.defaults.borderColor='#2a2a3a';
+const daily30 = {{ daily_30|tojson }};
+const peakHours = {{ peak_hours|tojson }};
+const typeStats = {{ type_stats|tojson }};
+const payStats = {{ payment_stats|tojson }};
+const monthly = {{ monthly|tojson }};
+
+// Daily 30 chart
+new Chart(document.getElementById('daily30Chart'),{
+  type:'bar',
+  data:{
+    labels:daily30.map(d=>d.day),
+    datasets:[
+      {label:'Revenue (Rs.)',data:daily30.map(d=>parseFloat(d.rev||0)),backgroundColor:'rgba(245,200,66,.5)',borderColor:'#f5c842',borderWidth:1,borderRadius:3,yAxisID:'y'},
+      {label:'Visits',data:daily30.map(d=>d.cnt),type:'line',borderColor:'#34d399',backgroundColor:'transparent',borderWidth:2,pointRadius:3,yAxisID:'y1'}
+    ]
+  },
+  options:{responsive:true,interaction:{mode:'index'},plugins:{legend:{labels:{font:{size:11}}}},
+    scales:{y:{grid:{color:'rgba(42,42,58,.5)'},beginAtZero:true,title:{display:true,text:'Revenue'}},
+            y1:{position:'right',grid:{display:false},beginAtZero:true,title:{display:true,text:'Visits'}},
+            x:{grid:{color:'rgba(42,42,58,.5)'}}}}
+});
+
+// Peak hours
+const allHours=Array.from({length:24},(_,i)=>i);
+const hMap={};peakHours.forEach(h=>hMap[h.hour]=h.cnt);
+new Chart(document.getElementById('peakChart'),{
+  type:'bar',
+  data:{
+    labels:allHours.map(h=>String(h).padStart(2,'0')+':00'),
+    datasets:[{label:'Entries',data:allHours.map(h=>hMap[h]||0),
+      backgroundColor:allHours.map(h=>{
+        const v=hMap[h]||0;const max=Math.max(...Object.values(hMap),1);
+        const i=v/max;return `rgba(245,200,66,${0.2+i*0.8})`;
+      }),borderColor:'transparent',borderRadius:2}]
+  },
+  options:{responsive:true,plugins:{legend:{display:false}},
+    scales:{x:{grid:{color:'rgba(42,42,58,.5)'},ticks:{maxRotation:45,font:{size:9}}},
+            y:{grid:{color:'rgba(42,42,58,.5)'},beginAtZero:true}}}
+});
+
+// Vehicle type donut
+const typeLabels=Object.keys(typeStats);
+const typeRevs=typeLabels.map(k=>parseFloat(typeStats[k].total_rev||0));
+new Chart(document.getElementById('typeChart'),{
+  type:'doughnut',
+  data:{labels:typeLabels,datasets:[{data:typeRevs,backgroundColor:['rgba(167,139,250,.7)','rgba(52,211,153,.7)'],borderColor:['#a78bfa','#34d399'],borderWidth:2}]},
+  options:{responsive:true,cutout:'65%',plugins:{legend:{position:'bottom',labels:{font:{size:11}}}}}
+});
+
+// Payment methods
+const payLabels=payStats.map(p=>(p.payment_method||'N/A').toUpperCase());
+const payCnts=payStats.map(p=>p.cnt);
+new Chart(document.getElementById('paymentChart'),{
+  type:'bar',
+  data:{labels:payLabels,datasets:[{label:'Transactions',data:payCnts,backgroundColor:['rgba(245,200,66,.6)','rgba(59,130,246,.6)','rgba(167,139,250,.6)'],borderRadius:3}]},
+  options:{responsive:true,plugins:{legend:{display:false}},
+    scales:{x:{grid:{display:false}},y:{grid:{color:'rgba(42,42,58,.5)'},beginAtZero:true}},
+    indexAxis:'y'}
+});
+
+// Monthly
+new Chart(document.getElementById('monthlyChart'),{
+  type:'line',
+  data:{labels:monthly.map(m=>m.month),datasets:[{label:'Revenue (Rs.)',data:monthly.map(m=>parseFloat(m.rev||0)),borderColor:'#f5c842',backgroundColor:'rgba(245,200,66,.1)',borderWidth:2.5,pointBackgroundColor:'#f5c842',pointRadius:5,fill:true,tension:.4}]},
+  options:{responsive:true,plugins:{legend:{display:false}},
+    scales:{x:{grid:{color:'rgba(42,42,58,.5)'}},y:{grid:{color:'rgba(42,42,58,.5)'},beginAtZero:true}}}
+});
+</script>
+{% endblock %}

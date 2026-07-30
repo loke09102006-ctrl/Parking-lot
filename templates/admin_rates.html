@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}Rates — ParkOS Admin{% endblock %}
+{% block page_title %}Parking Rates{% endblock %}
+{% block content %}
+<div style="max-width:500px">
+  <div class="card">
+    <div class="card-header"><span class="card-title">Configure Parking Rates</span></div>
+    <div class="card-body">
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:20px">Rates are charged per 30-minute slot. Minimum charge is 1 slot (30 min).</p>
+      <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+          <label class="form-label">2-Wheeler Rate (Rs. per 30 min)</label>
+          <input type="number" name="rate_2w" class="form-control" value="{{ rates['2-wheeler'] }}" min="1" step="0.5" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">4-Wheeler Rate (Rs. per 30 min)</label>
+          <input type="number" name="rate_4w" class="form-control" value="{{ rates['4-wheeler'] }}" min="1" step="0.5" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%">Update Rates</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <div class="card-header"><span class="card-title">Current Rates Preview</span></div>
+    <div class="card-body">
+      <table class="table">
+        <thead><tr><th>Duration</th><th>2-Wheeler</th><th>4-Wheeler</th></tr></thead>
+        <tbody>
+          {% for slots in range(1,9) %}
+          <tr>
+            <td class="mono">{{ slots * 30 }} min</td>
+            <td class="mono" style="color:var(--2w)">Rs. {{ slots * rates['2-wheeler'] }}</td>
+            <td class="mono" style="color:var(--4w)">Rs. {{ slots * rates['4-wheeler'] }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

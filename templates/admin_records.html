@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}All Records — ParkOS Admin{% endblock %}
+{% block page_title %}Parking Records{% endblock %}
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">All Parking Records</span>
+    <span style="font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--muted)">Total: {{ total }}</span>
+  </div>
+  <div class="card-body" style="padding:0;overflow-x:auto">
+    <table class="table">
+      <thead><tr>
+        <th>#</th><th>Vehicle No.</th><th>Type</th><th>Slot</th>
+        <th>Entry</th><th>Exit</th><th>Duration</th><th>Amount</th>
+        <th>Payment</th><th>Status</th>
+      </tr></thead>
+      <tbody>
+        {% for r in records %}
+        <tr>
+          <td class="mono" style="color:var(--muted)">{{ r.id }}</td>
+          <td><strong class="mono">{{ r.vehicle_number }}</strong></td>
+          <td><span class="badge badge-{{ '2w' if r.vehicle_type=='2-wheeler' else '4w' }}">{{ r.vehicle_type }}</span></td>
+          <td class="mono">{{ r.slot_code }}</td>
+          <td class="mono" style="font-size:.75rem">{{ r.entry_time.strftime('%d/%m %H:%M') }}</td>
+          <td class="mono" style="font-size:.75rem">{{ r.exit_time.strftime('%d/%m %H:%M') if r.exit_time else '—' }}</td>
+          <td class="mono">{{ (r.duration_minutes//60)|string+'h '+(r.duration_minutes%60)|string+'m' if r.duration_minutes else '—' }}</td>
+          <td class="mono" style="color:var(--accent)">{{ 'Rs.'+r.amount_due|string if r.amount_due else '—' }}</td>
+          <td>{{ r.payment_method or '—' }}</td>
+          <td><span class="badge badge-{{ 'paid' if r.payment_status=='paid' else 'pending' }}">{{ r.payment_status }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if pages > 1 %}
+  <div class="card-body" style="border-top:1px solid var(--border);display:flex;gap:8px;align-items:center">
+    {% for p in range(1, pages+1) %}
+      <a href="?page={{ p }}" class="btn btn-sm {{ 'btn-primary' if p==page else 'btn-outline' }}">{{ p }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

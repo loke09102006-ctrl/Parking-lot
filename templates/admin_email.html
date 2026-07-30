@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}Email Config — ParkOS{% endblock %}
+{% block page_title %}Email Configuration{% endblock %}
+{% block content %}
+<div style="max-width:560px">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">SMTP Email Setup</span>
+      <span class="badge {{ 'badge-paid' if smtp_configured else 'badge-pending' }}">
+        {{ 'CONFIGURED' if smtp_configured else 'NOT SET' }}
+      </span>
+    </div>
+    <div class="card-body">
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:20px;line-height:1.6">
+        Email receipts are sent automatically after checkout when the customer's email is captured at entry.
+        Configure the following environment variables on your server to enable this feature.
+      </p>
+      <table class="table">
+        <thead><tr><th>Environment Variable</th><th>Current Value</th><th>Example</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="mono">SMTP_HOST</td>
+            <td class="mono" style="color:var(--accent)">{{ smtp_host }}</td>
+            <td class="mono" style="color:var(--muted)">smtp.gmail.com</td>
+          </tr>
+          <tr>
+            <td class="mono">SMTP_PORT</td>
+            <td class="mono" style="color:var(--accent)">{{ smtp_port }}</td>
+            <td class="mono" style="color:var(--muted)">587</td>
+          </tr>
+          <tr>
+            <td class="mono">SMTP_USER</td>
+            <td class="mono" style="color:{{ 'var(--accent)' if smtp_user else 'var(--danger)' }}">
+              {{ smtp_user if smtp_user else '(not set)' }}
+            </td>
+            <td class="mono" style="color:var(--muted)">yourmail@gmail.com</td>
+          </tr>
+          <tr>
+            <td class="mono">SMTP_PASSWORD</td>
+            <td class="mono" style="color:var(--muted)">••••••••</td>
+            <td class="mono" style="color:var(--muted)">App Password</td>
+          </tr>
+          <tr>
+            <td class="mono">SMTP_FROM</td>
+            <td class="mono" style="color:var(--muted)">(defaults to SMTP_USER)</td>
+            <td class="mono" style="color:var(--muted)">ParkOS &lt;mail@...&gt;</td>
+          </tr>
+          <tr>
+            <td class="mono">UPI_ID</td>
+            <td class="mono" style="color:var(--muted)">(optional)</td>
+            <td class="mono" style="color:var(--muted)">yourname@upi</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card" style="margin-top:20px">
+    <div class="card-header"><span class="card-title">Gmail Quick Setup</span></div>
+    <div class="card-body">
+      <ol style="color:var(--muted);font-size:.85rem;line-height:2;padding-left:20px">
+        <li>Go to Google Account → Security → 2-Step Verification → App Passwords</li>
+        <li>Create an App Password for "Mail"</li>
+        <li>Set <span class="mono" style="background:var(--surface2);padding:1px 6px;border-radius:3px">SMTP_USER=yourmail@gmail.com</span></li>
+        <li>Set <span class="mono" style="background:var(--surface2);padding:1px 6px;border-radius:3px">SMTP_PASSWORD=&lt;16-char app password&gt;</span></li>
+        <li>Restart the app — emails will be auto-sent after every checkout with a customer email</li>
+      </ol>
+    </div>
+  </div>
+</div>
+{% endblock %}

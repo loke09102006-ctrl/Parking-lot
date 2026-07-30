@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% block title %}Bill #{{ record.id }} — ParkOS{% endblock %}
+{% block page_title %}Parking Receipt{% endblock %}
+{% block extra_css %}
+<style>
+.bill-wrap{max-width:600px;margin:0 auto}
+.bill-paper{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.bill-header{background:var(--accent);color:var(--bg);padding:24px 32px;display:flex;align-items:center;justify-content:space-between}
+.bill-brand{font-size:1.4rem;font-weight:800;letter-spacing:3px}
+.bill-sub{font-size:.65rem;letter-spacing:1px;margin-top:2px;opacity:.75}
+.bill-id{text-align:right;font-family:'JetBrains Mono',monospace}
+.bill-body{padding:28px 32px}
+.bill-sec-title{font-size:.62rem;font-family:'JetBrains Mono',monospace;color:var(--muted);
+  letter-spacing:2px;text-transform:uppercase;padding-bottom:6px;border-bottom:1px solid var(--border);margin-bottom:12px}
+.bill-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.bf-label{font-size:.62rem;font-family:'JetBrains Mono',monospace;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px}
+.bf-value{font-size:.88rem;font-weight:600}
+.bill-total{background:rgba(245,200,66,.08);border:2px solid var(--accent);border-radius:6px;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;margin:16px 0 20px}
+.bt-label{font-size:.85rem;font-weight:700;color:var(--muted)}
+.bt-amount{font-size:2rem;font-weight:800;color:var(--accent)}
+.pay-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:3px;font-family:'JetBrains Mono',monospace;font-size:.72rem;font-weight:600}
+.pay-cash{background:rgba(52,211,153,.1);color:var(--4w);border:1px solid rgba(52,211,153,.3)}
+.pay-upi{background:rgba(59,130,246,.1);color:var(--info);border:1px solid rgba(59,130,246,.3)}
+.pay-card{background:rgba(167,139,250,.1);color:var(--2w);border:1px solid rgba(167,139,250,.3)}
+.qr-block{text-align:center;padding:12px 0 16px}
+.qr-img{background:#fff;padding:10px;display:inline-block;border-radius:4px;border:2px solid var(--accent)}
+.bill-footer{background:var(--surface2);border-top:1px solid var(--border);padding:14px 32px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--muted);letter-spacing:.5px}
+.action-bar{display:flex;gap:12px;margin-top:20px;justify-content:center;flex-wrap:wrap}
+.email-banner{
+  background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);
+  border-radius:4px;padding:10px 16px;margin-bottom:16px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  font-size:.82rem;
+}
+@media print{
+  .sidebar,.topbar,.action-bar{display:none!important}
+  .main{margin-left:0!important}
+  .content{padding:0!important}
+  body{background:#fff!important;color:#000!important}
+  .bill-paper{border:none}
+  .bill-header{background:#000!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .bill-total{border-color:#ccc!important;background:#f9f9f9!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pay-badge{border:1px solid #ccc!important;color:#333!important;background:#f5f5f5!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="bill-wrap">
+  {% if record.owner_email %}
+  <div class="email-banner">
+    <span>📧 Receipt sent to <strong>{{ record.owner_email }}</strong></span>
+    <form method="POST" action="{{ url_for('resend_email', record_id=record.id) }}" style="margin:0">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-outline btn-sm">Resend</button>
+    </form>
+  </div>
+  {% endif %}
+
+  <div class="bill-paper" id="billPaper">
+    <div class="bill-header">
+      <div>
+        <div class="bill-brand">PARKOS</div>
+        <div class="bill-sub">PARKING MANAGEMENT SYSTEM</div>
+      </div>
+      <div class="bill-id">
+        <div style="font-size:.65rem;opacity:.7;letter-spacing:1px">RECEIPT</div>
+        <div style="font-size:1.1rem;font-weight:800">#{{ '%05d'|format(record.id) }}</div>
+        <div style="font-size:.68rem;opacity:.7">{{ record.exit_time.strftime('%d %b %Y, %H:%M') }}</div>
+      </div>
+    </div>
+    <div class="bill-body">
+      <div class="bill-sec-title">Vehicle & Owner</div>
+      <div class="bill-grid">
+        <div>
+          <div class="bf-label">Vehicle Number</div>
+          <div class="bf-value mono" style="font-size:1.05rem;color:var(--accent)">{{ record.vehicle_number }}</div>
+        </div>
+        <div>
+          <div class="bf-label">Vehicle Type</div>
+          <div class="bf-value">
+            <span class="badge badge-{{ '2w' if record.vehicle_type=='2-wheeler' else '4w' }}">{{ record.vehicle_type }}</span>
+          </div>
+        </div>
+        <div>
+          <div class="bf-label">Owner Name</div>
+          <div class="bf-value">{{ record.owner_name or 'N/A' }}</div>
+        </div>
+        <div>
+          <div class="bf-label">Owner Phone</div>
+          <div class="bf-value mono">{{ record.owner_phone or 'N/A' }}</div>
+        </div>
+        <div>
+          <div class="bf-label">Parking Slot</div>
+          <div class="bf-value mono">{{ record.slot_code }}</div>
+        </div>
+        <div>
+          <div class="bf-label">Payment</div>
+          <div class="bf-value">
+            <span class="pay-badge pay-{{ record.payment_method }}">{{ record.payment_method|upper }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bill-sec-title">Duration</div>
+      <div class="bill-grid">
+        <div>
+          <div class="bf-label">Entry</div>
+          <div class="bf-value mono">{{ record.entry_time.strftime('%H:%M, %d %b %Y') }}</div>
+        </div>
+        <div>
+          <div class="bf-label">Exit</div>
+          <div class="bf-value mono">{{ record.exit_time.strftime('%H:%M, %d %b %Y') }}</div>
+        </div>
+        <div>
+          <div class="bf-label">Total Duration</div>
+          <div class="bf-value mono">{{ record.duration_minutes // 60 }}h {{ record.duration_minutes % 60 }}m</div>
+        </div>
+        <div>
+          <div class="bf-label">Exit Staff</div>
+          <div class="bf-value">{{ record.exit_staff_name or 'N/A' }}</div>
+        </div>
+      </div>
+
+      <div class="bill-total">
+        <div class="bt-label">Total Amount</div>
+        <div class="bt-amount">Rs. {{ record.amount_due }}</div>
+      </div>
+
+      {% if record.payment_method == 'upi' and qr_code %}
+      <div class="qr-block">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:.67rem;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">Scan to Pay via UPI</div>
+        <div class="qr-img"><img src="data:image/png;base64,{{ qr_code }}" width="160" height="160" alt="UPI QR"></div>
+        <div style="margin-top:8px;font-size:.72rem;font-family:'JetBrains Mono',monospace;color:var(--muted)">7013455633-2@ybl</div>
+      </div>
+      {% endif %}
+    </div>
+    <div class="bill-footer">Thank you for using ParkOS &nbsp;·&nbsp; Drive Safe &nbsp;·&nbsp; Visit Again</div>
+  </div>
+
+  <div class="action-bar">
+    <button onclick="window.print()" class="btn btn-primary">🖨 Print Bill</button>
+    <button onclick="savePDF()" class="btn btn-outline">↓ Save as PDF</button>
+    <a href="{{ url_for('exit_vehicle') }}" class="btn btn-outline">← New Exit</a>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline">⌂ Dashboard</a>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function savePDF(){
+  const s=document.createElement('style');
+  s.textContent='@page{size:A4;margin:15mm}';
+  document.head.appendChild(s);
+  window.print();
+  setTimeout(()=>document.head.removeChild(s),1000);
+}
+</script>
+{% endblock %}
