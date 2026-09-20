@@ -48,9 +48,9 @@ DB_PATH = os.path.join(os.path.dirname(__file__), 'parking.db')
 
 SMTP_HOST     = 'smtp.gmail.com'
 SMTP_PORT     = 587
-SMTP_USER     = 'loke09102006@gmail.com'
-SMTP_PASSWORD = 'mawbbspfzpdhffpf'
-SMTP_FROM     = 'loke09102006@gmail.com'
+SMTP_USER     = '@@@@@'
+SMTP_PASSWORD = '........'
+SMTP_FROM     = '@@@@@'
 
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
